@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  # --- Service 1: Node.js ---
+  node_app:
+    build: ./node
+    container_name: node_container
+    restart: always
+    environment:
+      - PORT=8001
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8001 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # --- Service 2: Python ---
+  python_app:
+    build: ./python
+    container_name: python_container
+    restart: always
+    environment:
+      - FLASK_ENV=production
+      - PORT=8002
+    healthcheck:
+      test: ["CMD-SHELL", "python", "healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # --- Service 3: Java ---
+  # java_app:
+  #   build: ./java
+  #   container_name: java_container
+  #   restart: always
+
+  # --- The Tunnel (The Gateway) ---
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: tunnel_gateway
+    restart: always
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiNzE3MDFlZWY0ZmUwNmQ5ODJhOGYwNGI5OWYyMDJiNzgiLCJ0IjoiOGZkNzBiN2UtMWYyYi00ZjQyLTg5OWUtZTRhYzg4YmU5N2E4IiwicyI6Ik5qUTRNVFZoTXpBdE5HTTJNeTAwTW1VekxXSTNaalV0WW1RNFlXUXlOV1V4TnpGayJ9
+    depends_on:
+      node_app:
+        condition: service_healthy
+      python_app:
+        condition: service_healthy
