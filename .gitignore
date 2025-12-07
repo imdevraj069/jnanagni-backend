@@ -1,0 +1,29 @@
+# --nodejs--
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# --python--
+__pycache__/
+*.pyc
+.env
+venv/
+.idea/
+.pytest_cache/
+
+# --java--
+*.class
+*.jar
+*.war
+target/
+.gradle/
+build/
+*.iml
+
+
+# --general--
+.DS_Store
+*.log
+*.tmp
+.vscode/
+.idea/
