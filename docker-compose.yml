@@ -36,6 +36,25 @@ services:
       retries: 5
       start_period: 10s
 
+  # -- service: frontend : nextjs ---
+  next_app:
+    build: ./next
+    container_name: next_container
+    restart: always
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    environment:
+      - PORT=${FRONTEND_PORT}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.0:3001 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+
+
+
   # --- Service 3: Java ---
   # java_app:
   #   build: ./java
@@ -55,3 +74,6 @@ services:
         condition: service_healthy
       python_app:
         condition: service_healthy
+      next_app:
+        condition: service_healthy
+
