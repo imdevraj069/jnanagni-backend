@@ -24,3 +24,7 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.auth-input {
+  @apply w-full bg-black/50 border border-white/10 rounded px-4 py-3 text-white placeholder-gray-700 focus:outline-none focus:border-purple-600 focus:ring-1 focus:ring-purple-600 transition-all mt-1;
+}

@@ -16,7 +16,7 @@ import errm from "./middlewares/error.middleware.js"; // Custom global error han
 // |
 // | Import modular route handlers for different API resources.
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
-// import { authRouter } from "./apis/auth.api.js";
+import { authRouter } from "./apis/auth.api.js";
 // import { seedRouter } from "./apis/seed.api.js";
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -74,7 +74,7 @@ app.use(
 const corsOptions = {
 
   // Define the allowed origin(s). '*' is a fallback for development.
-  origin: process.env.CORS_ORIGIN || "*",
+  origin: "*",
 
   // Allow browsers to send credentials (e.g., cookies) with requests
   credentials: true,
@@ -126,7 +126,7 @@ app.get("/health", (req, res) => {
 // | Mount the modular route handlers to their respective versioned base paths.
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
 // All authentication routes will be prefixed with '/api/v1/auth'
-// app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/auth", authRouter);
 // app.use("/api/v1/seed", seedRouter);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -6,3 +6,5 @@ dist
 Dockerfile
 npm-debug.log
 docker-compose.yml
+files.md
+createDocs.js
