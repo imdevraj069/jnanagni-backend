@@ -7,11 +7,13 @@ const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || 'http://node_app:8001';
 
 // Helper to set cookie
 async function setAuthCookie(token) {
-  // 6 days expiry
   const expires = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000);
   
-  cookies().set('accessToken', token, {
-    httpOnly: true, // Secure: Client JS cannot read this
+  // FIX: await cookies()
+  const cookieStore = await cookies();
+  
+  cookieStore.set('accessToken', token, {
+    httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     expires: expires,
     path: '/',
@@ -21,7 +23,8 @@ async function setAuthCookie(token) {
 
 // --- 1. SESSION CHECK (Hydration) ---
 export async function getSessionAction() {
-  const cookieStore = cookies();
+  // FIX: await cookies()
+  const cookieStore = await cookies();
   const token = cookieStore.get('accessToken')?.value;
 
   if (!token) return { user: null };
@@ -38,11 +41,15 @@ export async function getSessionAction() {
   } catch (error) {
     return { user: null };
   }
+
+  // JGN26-9F03
 }
 
 // --- 2. LOGOUT ACTION ---
 export async function logoutAction() {
-  cookies().delete('accessToken');
+  // FIX: await cookies()
+  const cookieStore = await cookies();
+  cookieStore.delete('accessToken');
   return { success: true };
 }
 
@@ -55,16 +62,14 @@ export async function loginUserAction(prevState, formData) {
 
   try {
     const response = await axios.post(`${BACKEND_URL}/api/v1/auth/login`, payload);
-    
-    // Extract token and user data from backend response
-    const { token, user } = response.data.data; // Adjust based on your actual API response structure
+    const { token, user } = response.data.data; 
 
     await setAuthCookie(token);
 
     return { 
       type: 'success', 
       message: 'Welcome back, Commander.',
-      user: user || { email: payload.email, role: 'STUDENT' } // Fallback if backend doesn't send user obj
+      user: user || { email: payload.email, role: 'STUDENT' }
     };
 
   } catch (error) {
@@ -91,7 +96,7 @@ export async function registerUserAction(prevState, formData) {
 
     return { 
       type: 'success', 
-      message: 'Registration Complete. Access Granted.',
+      message: `Registration Complete. Your ID: ${user.jnanagniId}`,
       user: user
     };
   } catch (error) {
@@ -102,13 +107,45 @@ export async function registerUserAction(prevState, formData) {
   }
 }
 
-// --- 5. FORGOT PASSWORD ACTION ---
+// --- 5. FORGOT PASSWORD ---
 export async function forgotPasswordAction(prevState, formData) {
   const email = formData.get('email');
+  
   try {
-    await axios.post(`${BACKEND_URL}/api/v1/auth/forgot-password`, { email });
-    return { type: 'success', message: 'Reset link sent to comms channel.' };
+    const response = await axios.post(`${BACKEND_URL}/api/v1/auth/forgot-password`, { email });
+    
+    return { 
+      type: 'success', 
+      message: response.data.message || 'OTP sent to email.',
+      email: email 
+    };
   } catch (error) {
-    return { type: 'error', message: 'Email not found in database.' };
+    return { 
+      type: 'error', 
+      message: error.response?.data?.message || 'Email not found.' 
+    };
+  }
+}
+
+// --- 6. RESET PASSWORD ---
+export async function resetPasswordAction(prevState, formData) {
+  const payload = {
+    email: formData.get('email'),
+    otp: formData.get('otp'),
+    password: formData.get('password')
+  };
+
+  try {
+    const response = await axios.post(`${BACKEND_URL}/api/v1/auth/reset-password`, payload);
+    
+    return { 
+      type: 'success', 
+      message: 'Password Reset Successful. Please Login.' 
+    };
+  } catch (error) {
+    return { 
+      type: 'error', 
+      message: error.response?.data?.message || 'Invalid Code or Expired.' 
+    };
   }
 }

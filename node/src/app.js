@@ -17,6 +17,7 @@ import errm from "./middlewares/error.middleware.js"; // Custom global error han
 // | Import modular route handlers for different API resources.
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
 import { authRouter } from "./apis/auth.api.js";
+import { userRouter } from "./apis/user.api.js";
 // import { seedRouter } from "./apis/seed.api.js";
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -127,6 +128,7 @@ app.get("/health", (req, res) => {
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
 // All authentication routes will be prefixed with '/api/v1/auth'
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/users", userRouter);
 // app.use("/api/v1/seed", seedRouter);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
