@@ -2,7 +2,8 @@
 node_modules/
 npm-debug.log
 yarn-error.log
-files.md
+nextFiles.md
+nodeFiles.md
 createDocs.js
 
 # --python--
