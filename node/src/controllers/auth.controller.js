@@ -3,68 +3,122 @@ import user from "../models/user.model.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import { sendWelcomeEmail, sendOtpEmail } from "../services/email.service.js";
+import { sendWelcomeEmail, sendOtpEmail, sendVerificationEmail } from "../services/email.service.js";
 
 const generateJnanagniId = () => {
-  const suffix = crypto.randomBytes(2).toString('hex').toUpperCase(); // Generates 4 chars
+  const suffix = crypto.randomBytes(2).toString('hex').toUpperCase(); 
   return `JGN26-${suffix}`;
 };
 
-// --- REGISTER ---
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, password, adminSecret } = req.body;
+  const { name, email, password, contactNo, whatsappNo, college, branch, campus, role, adminSecret } = req.body;
   
   const existingUser = await user.findOne({ email });
   if (existingUser) {
     throw new ApiError(400, "User already exists with this email");
   }
 
-  // --- UNIQUE ID GENERATION & CHECK ---
+  // ID Generation
   let uniqueId;
   let isUnique = false;
-
-  // Retry loop: Keep generating until we find one that doesn't exist
   while (!isUnique) {
     uniqueId = generateJnanagniId();
-    
-    // Check DB for existence
     const existingIdUser = await user.findOne({ jnanagniId: uniqueId });
-    
-    if (!existingIdUser) {
-      isUnique = true; // Found a free ID, break the loop
-    }
-    // If it exists, the loop runs again automatically
+    if (!existingIdUser) isUnique = true; 
   }
 
-  // Determine Role
-  let role = "student"; 
-  if (email.endsWith(".gkv.ac.in")) role = "gkvian";
+  let userRole = (role || "student").toLowerCase(); 
+  if (adminSecret === process.env.ADMIN_SECRET) userRole = "admin";
 
-  if (adminSecret && adminSecret === process.env.ADMIN_SECRET) {
-    role = "admin";
-  }
-
-  // Create User with the Unique ID
-  const newUser = await user.create({ 
-    name, 
-    email, 
-    password, 
-    role,
+  // Create User (isVerified defaults to false)
+  const newUser = new user({ 
+    name, email, password, contactNo, whatsappNo, college, branch, campus,
+    role: userRole,
     jnanagniId: uniqueId 
   });
 
-  const createdUser = await user.findById(newUser._id).select("-password");
-  const token = newUser.getAccessToken();
+  // Generate Verification Token
+  const verificationToken = newUser.generateVerificationToken();
+  await newUser.save();
 
-  // Send Welcome Email (Now includes the ID)
+  // Send Verification Email
   try {
-    await sendWelcomeEmail(email, name, uniqueId);
+    await sendVerificationEmail(email, name, uniqueId, verificationToken);
   } catch (error) {
-    console.error("Email service failed:", error); 
+    console.error("Email failed:", error);
+    // Optional: Delete user if email fails, or allow resend later
   }
 
   res.status(201).json(
-    new ApiResponse(201, { user: createdUser, token }, "User registered successfully")
+    new ApiResponse(201, { jnanagniId: uniqueId }, "Registration successful. Please check your email to verify account.")
+  );
+});
+
+// --- VERIFY EMAIL (Step 2) ---
+export const verifyUserEmail = asyncHandler(async (req, res) => {
+  const { jnanagniId, token } = req.body; // Sent from frontend
+  console.log("verifying", jnanagniId, token);
+
+  if (!jnanagniId || !token) {
+    throw new ApiError(400, "Invalid verification link");
+  }
+
+  // Hash token to compare with DB
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const userRecord = await user.findOne({
+    jnanagniId,
+    verificationToken: hashedToken,
+    verificationExpire: { $gt: Date.now() } // Check expiry
+  });
+
+  if (!userRecord) {
+    throw new ApiError(400, "Invalid or expired verification link. Please resend verification.");
+  }
+
+  // Activate User
+  userRecord.isVerified = true;
+  userRecord.verificationToken = undefined;
+  userRecord.verificationExpire = undefined;
+  await userRecord.save();
+
+  // Send Welcome Email (Now that they are verified)
+  try {
+    await sendWelcomeEmail(userRecord.email, userRecord.name, userRecord.jnanagniId);
+  } catch (error) {
+    console.error("Welcome email failed:", error);
+  }
+
+  // Generate Token for immediate login
+  const authToken = userRecord.getAccessToken();
+
+  res.status(200).json(
+    new ApiResponse(200, { user: userRecord, token: authToken }, "Email verified successfully!")
+  );
+});
+
+// --- RESEND VERIFICATION ---
+export const resendVerification = asyncHandler(async (req, res) => {
+  const { email, jnanagniId } = req.body;
+  
+  // Find by either email or ID
+  const query = email ? { email } : { jnanagniId };
+  const userRecord = await user.findOne(query);
+
+  if (!userRecord) throw new ApiError(404, "User not found");
+  if (userRecord.isVerified) throw new ApiError(400, "User already verified");
+
+  const newToken = userRecord.generateVerificationToken();
+  await userRecord.save({ validateBeforeSave: false });
+
+  try {
+    await sendVerificationEmail(userRecord.email, userRecord.name, userRecord.jnanagniId, newToken);
+  } catch (error) {
+    throw new ApiError(500, "Failed to send email");
+  }
+
+  res.status(200).json(
+    new ApiResponse(200, {}, "Verification link resent successfully")
   );
 });
 
@@ -72,23 +126,23 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Validate email & password
   if (!email || !password) {
     throw new ApiError(400, "Please provide an email and password");
   }
 
-  // Check for user
-  // We need to explicitly select password because usually it's excluded
   const foundUser = await user.findOne({ email });
 
   if (!foundUser) {
     throw new ApiError(401, "Invalid credentials");
   }
 
-  // Check if password matches
   const isMatch = await foundUser.comparePassword(password);
   if (!isMatch) {
     throw new ApiError(401, "Invalid credentials");
+  }
+
+  if (!foundUser.isVerified) {
+     throw new ApiError(403, "Email not verified. Please check your inbox.");
   }
 
   const token = foundUser.getAccessToken();
@@ -101,16 +155,14 @@ export const login = asyncHandler(async (req, res) => {
 
 // --- GET CURRENT USER (ME) ---
 export const getMe = asyncHandler(async (req, res) => {
-  // req.user is set by the protect middleware
   const currentUser = await user.findById(req.user.id).select("-password");
-
   res.status(200).json(
     new ApiResponse(200, { user: currentUser }, "User profile fetched successfully")
   );
 });
 
 
-// --- FORGOT PASSWORD (OTP Request) ---
+// --- FORGOT PASSWORD ---
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   if (!email) throw new ApiError(400, "Email is required");
@@ -120,14 +172,11 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  // 1. Generate OTP
   const otp = userRecord.generateResetOtp();
   await userRecord.save({ validateBeforeSave: false });
 
-  // 2. Send Email
   try {
     await sendOtpEmail(email, otp);
-    
     res.status(200).json(
       new ApiResponse(200, {}, `Verification code sent to ${email}`)
     );
@@ -139,25 +188,19 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   }
 });
 
-// --- RESET PASSWORD (Verify OTP & Set New Password) ---
+// --- RESET PASSWORD ---
 export const resetPassword = asyncHandler(async (req, res) => {
-  // We need email, otp, and the new password
   const { email, otp, password } = req.body;
 
   if (!email || !otp || !password) {
     throw new ApiError(400, "Email, OTP, and new password are required");
   }
 
-  // 1. Hash the incoming OTP to compare with DB
   const hashedOtp = crypto
     .createHash('sha256')
     .update(otp)
     .digest('hex');
 
-  // 2. Find user with:
-  //    - Matching email
-  //    - Matching hashed OTP
-  //    - Expiry time in the future
   const userRecord = await user.findOne({
     email,
     resetPasswordToken: hashedOtp,
@@ -168,18 +211,13 @@ export const resetPassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid or expired verification code");
   }
 
-  // 3. Update Password
   userRecord.password = password;
   userRecord.resetPasswordToken = undefined;
   userRecord.resetPasswordExpire = undefined;
   
   await userRecord.save();
 
-  // 4. Auto-login (Optional) or just return success
   res.status(200).json(
     new ApiResponse(200, {}, "Password reset successfully. You can now login.")
   );
 });
-
-
-

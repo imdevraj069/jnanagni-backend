@@ -7,9 +7,7 @@ const BACKEND_URL = process.env.BACKEND_INTERNAL_URL || 'http://node_app:8001';
 
 // Helper to set cookie
 async function setAuthCookie(token) {
-  const expires = new Date(Date.now() + 6 * 24 * 60 * 60 * 1000);
-  
-  // FIX: await cookies()
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 Days
   const cookieStore = await cookies();
   
   cookieStore.set('accessToken', token, {
@@ -19,6 +17,73 @@ async function setAuthCookie(token) {
     path: '/',
     sameSite: 'strict'
   });
+}
+
+// --- REGISTER ACTION (Updated) ---
+export async function registerUserAction(prevState, formData) {
+  const payload = {
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+    contactNo: formData.get('contactNo'),
+    whatsappNo: formData.get('whatsappNo'),
+    
+    // Conditional Fields
+    college: formData.get('college'), 
+    branch: formData.get('branch'),
+    campus: formData.get('campus'),
+    role: formData.get('role'), // Calculated on client
+  };
+
+  try {
+    const response = await axios.post(`${BACKEND_URL}/api/v1/auth/register`, payload);
+    
+    // Note: We do NOT set the cookie here anymore.
+    // The user must verify email first.
+    
+    return { 
+      type: 'success', 
+      message: response.data.message || 'Registration successful. Check your email.',
+      data: response.data.data // Contains jnanagniId potentially
+    };
+  } catch (error) {
+    return { 
+      type: 'error', 
+      message: error.response?.data?.message || 'Registration Failed.' 
+    };
+  }
+}
+
+// --- VERIFY EMAIL ACTION (New) ---
+export async function verifyUserAction(jnanagniId, token) {
+  try {
+    const response = await axios.post(`${BACKEND_URL}/api/v1/auth/verify-email`, {
+      jnanagniId,
+      token
+    });
+
+    const { token: authToken, user } = response.data.data;
+
+    // Login the user immediately after verification
+    await setAuthCookie(authToken);
+
+    return { success: true, user, message: 'Account Verified Successfully!' };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: error.response?.data?.message || 'Verification Failed or Expired.' 
+    };
+  }
+}
+
+// --- RESEND VERIFICATION ACTION (New) ---
+export async function resendVerificationAction(email) {
+  try {
+    const response = await axios.post(`${BACKEND_URL}/api/v1/auth/resend-verification`, { email });
+    return { type: 'success', message: response.data.message };
+  } catch (error) {
+    return { type: 'error', message: error.response?.data?.message || 'Failed to resend link.' };
+  }
 }
 
 // --- 1. SESSION CHECK (Hydration) ---
@@ -76,33 +141,6 @@ export async function loginUserAction(prevState, formData) {
     return { 
       type: 'error', 
       message: error.response?.data?.message || 'Invalid Credentials.' 
-    };
-  }
-}
-
-// --- 4. REGISTER ACTION ---
-export async function registerUserAction(prevState, formData) {
-  const payload = {
-    name: formData.get('name'),
-    email: formData.get('email'),
-    password: formData.get('password'),
-  };
-
-  try {
-    const response = await axios.post(`${BACKEND_URL}/api/v1/auth/register`, payload);
-    const { token, user } = response.data.data;
-
-    await setAuthCookie(token);
-
-    return { 
-      type: 'success', 
-      message: `Registration Complete. Your ID: ${user.jnanagniId}`,
-      user: user
-    };
-  } catch (error) {
-    return { 
-      type: 'error', 
-      message: error.response?.data?.message || 'Registration Failed.' 
     };
   }
 }

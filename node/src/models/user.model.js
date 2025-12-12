@@ -1,126 +1,93 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto from "crypto"; // Native Node module for random bytes
+import crypto from "crypto"; 
 
 const userSchema = new Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-    password: {
-      type: String,
-      required: true,
-      minlength: [8, "Password must be at least 8 characters"],
-      // Simple regex for complexity
-      validate: {
-        validator: function (v) {
-          return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(v);
-        },
-        message: "Password must contain uppercase, lowercase, and number",
-      },
-    },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    contactNo: { type: String, required: true, trim: true },
+    whatsappNo: { type: String, required: true, trim: true },
+    
+    // Academic Fields
+    college: { type: String, trim: true },
+    branch: { type: String, trim: true },
+    campus: { type: String, enum: ["FET", "University", "KGC"], trim: true },
+
+    password: { type: String, required: true },
+    
     role: {
       type: String,
-      enum: [
-        "student",
-        "gkvian",
-        "admin",
-        "coordinator",
-        "volunteer",
-        "faculty",
-      ],
+      enum: ["student", "gkvian", "fetian", "admin", "coordinator", "volunteer", "faculty"],
       default: "student",
     },
 
-    jnanagniId: {
-      type: String,
-      unique: true,
-      uppercase: true, // Force uppercase for consistency
-      trim: true,
+    jnanagniId: { type: String, unique: true, uppercase: true, trim: true },
+
+    // --- VERIFICATION FIELDS ---
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
+    verificationToken: String,
+    verificationExpire: Date,
 
     paymentStatus: {
       type: String,
       enum: ["pending", "verified", "failed"],
       default: "pending",
     },
-    // Fields for Password Reset
+    
     resetPasswordToken: String,
     resetPasswordExpire: Date,
   },
   { timestamps: true }
 );
 
-// Encrypt password before saving
+// ... (Keep existing pre-save hash and comparePassword methods) ...
 userSchema.pre("save", async function () {
   if (this.isModified("password")) {
     this.password = await bcrypt.hash(this.password, 10);
   }
 });
 
-// Method to compare passwords
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Method to generate Access Token
 userSchema.methods.getAccessToken = function () {
   return jwt.sign(
-    {
-      id: this._id,
-      email: this.email,
-      role: this.role,
-    },
+    { id: this._id, email: this.email, role: this.role },
     process.env.JWT_SECRET || "BLACKBIRDCODELABS",
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d", // Matched cookie expiry preference
-    }
+    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
   );
 };
 
-// // Method to generate Password Reset Token
-// userSchema.methods.getResetPasswordToken = function () {
-//     // Generate token
-//     const resetToken = crypto.randomBytes(20).toString('hex');
-
-//     // Hash token and set to resetPasswordToken field
-//     this.resetPasswordToken = crypto
-//         .createHash('sha256')
-//         .update(resetToken)
-//         .digest('hex');
-
-//     // Set expire (10 minutes)
-//     this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
-
-//     return resetToken;
-// };
-
-// --- NEW OTP GENERATOR ---
+// ... (Keep generateResetOtp) ...
 userSchema.methods.generateResetOtp = function () {
-  // 1. Generate a random 6-digit number
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  this.resetPasswordToken = crypto.createHash("sha256").update(otp).digest("hex");
+  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  return otp;
+};
 
-  // 2. Hash it before saving to DB (Security best practice)
-  this.resetPasswordToken = crypto
+// --- NEW VERIFICATION TOKEN GENERATOR ---
+userSchema.methods.generateVerificationToken = function () {
+  // 1. Generate 128-character hex string (64 bytes)
+  const token = crypto.randomBytes(64).toString('hex');
+
+  // 2. Hash it before saving to DB
+  this.verificationToken = crypto
     .createHash("sha256")
-    .update(otp)
+    .update(token)
     .digest("hex");
 
-  // 3. Set expiry (e.g., 10 minutes)
-  this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  // 3. Set expiry for 30 minutes
+  this.verificationExpire = Date.now() + 30 * 60 * 1000;
 
-  // 4. Return the plain OTP to send in email
-  return otp;
+  // 4. Return plain token to send in email
+  return token;
 };
 
 const User = mongoose.model("User", userSchema);
