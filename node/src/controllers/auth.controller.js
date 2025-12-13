@@ -28,12 +28,30 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   let userRole = (role || "student").toLowerCase(); 
-  if (adminSecret === process.env.ADMIN_SECRET) userRole = "admin";
 
-  // Create User (isVerified defaults to false)
+  // 2. Determine Special Roles
+  // Default to ["None"]
+  let specialRoles = ["None"];
+
+  // Check Admin Secret
+  if (adminSecret === process.env.ADMIN_SECRET) {
+    // If secret matches, set special role to admin
+    // We replace "None" with "admin"
+    specialRoles = ["admin"]; 
+  }
+
+  // Create User
   const newUser = new user({ 
-    name, email, password, contactNo, whatsappNo, college, branch, campus,
-    role: userRole,
+    name, 
+    email, 
+    password, 
+    contactNo, 
+    whatsappNo, 
+    college, 
+    branch, 
+    campus,
+    role: userRole,         // Primary Role (e.g., student)
+    specialRoles: specialRoles, // Special Role (e.g., admin or None)
     jnanagniId: uniqueId 
   });
 

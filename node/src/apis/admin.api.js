@@ -13,14 +13,15 @@ import {
 import { 
     createEventCategory, 
     updateEventCategory, 
-    deleteEventCategory 
+    deleteEventCategory
 } from "../controllers/event.controller.js";
 
 import { 
     createEvent, 
     updateEvent, 
     deleteEvent, 
-    addCoordinatorToEvent 
+    addCoordinatorToEvent,
+    addVolunteerToEvent
 } from "../controllers/event.controller.js";
 
 import { 
@@ -94,6 +95,13 @@ adminRouter.post(
     addCoordinatorToEvent
 );
 
+// Assign Volunteer
+adminRouter.post(
+    '/events/:id/volunteer', 
+    authorize('admin', 'category_lead', 'event_coordinator'), 
+    verifyEventAuthority, 
+    addVolunteerToEvent
+);
 
 // ==========================================
 // REGISTRATION MANAGEMENT (The "Scanner" & "Desk" Ops)

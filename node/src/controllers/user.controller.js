@@ -97,7 +97,15 @@ export const changeUserRole = asyncHandler(async (req, res) => {
     }
 
     if (role) foundUser.role = role;
-    if (specialRoles) foundUser.specialRoles = specialRoles;
+    
+    if (specialRoles) {
+        const rolesToSet = Array.isArray(specialRoles) ? specialRoles : [specialRoles];
+        if (rolesToSet.includes('None')) {
+            foundUser.specialRoles = [];
+        } else {
+            foundUser.specialRoles = rolesToSet;
+        }
+    }
 
     await foundUser.save();
 

@@ -1,26 +1,123 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
+/* --- 1. Base Setup & Fonts --- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Default to Dark/Electronic Theme directly */
+  --background: 222 47% 11%;     /* Deep Navy/Black #0f172a */
+  --foreground: 210 40% 98%;     /* Off-white #f8fafc */
+
+  --card: 217 33% 17%;           /* Lighter Navy #1e293b */
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 180 100% 50%;       /* Neon Cyan #00FFFF */
+  --primary-foreground: 222 47% 11%;
+
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+
+  --accent: 280 100% 60%;        /* Neon Purple */
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 84% 60%;      /* Neon Red */
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 180 100% 50%;
+
+  --radius: 0.5rem;
+  
+  /* Sidebar Specifics */
+  --sidebar: 222 47% 11%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 180 100% 50%;
+  --sidebar-primary-foreground: 222 47% 11%;
+  --sidebar-accent: 217 33% 17%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-ring: 180 100% 50%;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius));
+  --radius-lg: calc(var(--radius) + 2px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* --- 2. Global Styles --- */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* --- 3. Electronic Theme Effects --- */
+
+/* Grid Background for that "Cyberspace" feel */
+.grid-pattern {
+  background-size: 50px 50px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+  mask-image: linear-gradient(to bottom, white 40%, transparent 100%);
+}
+
+/* Neon Glows */
+.glow-primary {
+  box-shadow: 0 0 15px -3px hsl(var(--primary) / 0.3);
+}
+
+.glow-accent {
+  box-shadow: 0 0 15px -3px hsl(var(--accent) / 0.3);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px hsl(var(--primary) / 0.5);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
 }
