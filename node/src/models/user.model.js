@@ -1,27 +1,47 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto from "crypto"; 
+import crypto from "crypto";
 
 const userSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
     contactNo: { type: String, required: true, trim: true },
     whatsappNo: { type: String, required: true, trim: true },
-    
+
     // Academic Fields
     college: { type: String, trim: true },
     branch: { type: String, trim: true },
     campus: { type: String, enum: ["FET", "University", "KGC"], trim: true },
 
     password: { type: String, required: true },
-    
+
     role: {
       type: String,
-      enum: ["student", "gkvian", "fetian", "admin", "coordinator", "volunteer", "faculty"],
+      enum: [
+        "student",
+        "gkvian",
+        "fetian",
+        "faculty",
+      ],
       default: "student",
     },
+    specialRoles: [
+      {
+        type: String,
+        enum: ["event_coordinator", "volunteer", "category_lead", "admin", "finance_team", "None"],
+        default: "None",
+      }
+    ],
+
+    // Unique Jnanagni Identifier
 
     jnanagniId: { type: String, unique: true, uppercase: true, trim: true },
 
@@ -38,7 +58,7 @@ const userSchema = new Schema(
       enum: ["pending", "verified", "failed"],
       default: "pending",
     },
-    
+
     resetPasswordToken: String,
     resetPasswordExpire: Date,
   },
@@ -67,7 +87,10 @@ userSchema.methods.getAccessToken = function () {
 // ... (Keep generateResetOtp) ...
 userSchema.methods.generateResetOtp = function () {
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  this.resetPasswordToken = crypto.createHash("sha256").update(otp).digest("hex");
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(otp)
+    .digest("hex");
   this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
   return otp;
 };
@@ -75,7 +98,7 @@ userSchema.methods.generateResetOtp = function () {
 // --- NEW VERIFICATION TOKEN GENERATOR ---
 userSchema.methods.generateVerificationToken = function () {
   // 1. Generate 128-character hex string (64 bytes)
-  const token = crypto.randomBytes(64).toString('hex');
+  const token = crypto.randomBytes(64).toString("hex");
 
   // 2. Hash it before saving to DB
   this.verificationToken = crypto

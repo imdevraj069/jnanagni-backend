@@ -18,6 +18,8 @@ import errm from "./middlewares/error.middleware.js"; // Custom global error han
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
 import { authRouter } from "./apis/auth.api.js";
 import { userRouter } from "./apis/user.api.js";
+import { eventRouter } from "./apis/event.api.js"; // Import Event Router
+import { adminRouter } from "./apis/admin.api.js"; // Import Admin Router
 // import { seedRouter } from "./apis/seed.api.js";
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -129,6 +131,8 @@ app.get("/health", (req, res) => {
 // All authentication routes will be prefixed with '/api/v1/auth'
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/users", userRouter);
+app.use("/api/v1/events", eventRouter); // Public & Student routes
+app.use("/api/v1/admin", adminRouter);   // Protected Management routes
 // app.use("/api/v1/seed", seedRouter);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------

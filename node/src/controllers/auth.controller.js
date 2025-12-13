@@ -46,7 +46,9 @@ export const register = asyncHandler(async (req, res) => {
     await sendVerificationEmail(email, name, uniqueId, verificationToken);
   } catch (error) {
     console.error("Email failed:", error);
-    // Optional: Delete user if email fails, or allow resend later
+    // delete user if email fails
+    await user.deleteOne({ _id: newUser._id });
+    throw new ApiError(500, "Failed to send verification email. Please try again.");
   }
 
   res.status(201).json(
@@ -57,7 +59,6 @@ export const register = asyncHandler(async (req, res) => {
 // --- VERIFY EMAIL (Step 2) ---
 export const verifyUserEmail = asyncHandler(async (req, res) => {
   const { jnanagniId, token } = req.body; // Sent from frontend
-  console.log("verifying", jnanagniId, token);
 
   if (!jnanagniId || !token) {
     throw new ApiError(400, "Invalid verification link");
@@ -155,7 +156,7 @@ export const login = asyncHandler(async (req, res) => {
 
 // --- GET CURRENT USER (ME) ---
 export const getMe = asyncHandler(async (req, res) => {
-  const currentUser = await user.findById(req.user.id).select("-password");
+  const currentUser = req.user;
   res.status(200).json(
     new ApiResponse(200, { user: currentUser }, "User profile fetched successfully")
   );
