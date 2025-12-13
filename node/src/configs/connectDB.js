@@ -8,7 +8,7 @@ export const connectDB = async () => {
             DB_PASS,
             DB_HOST = 'localhost',
             DB_PORT = '27017',
-            DB_NAME = 'test',
+            DB_NAME = 'jnanagni',
             MONGODB_URI // Allow override via full URI
         } = process.env;
 
